@@ -8,6 +8,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
 using System.Threading.Tasks;
+using System.Threading;
 using System.Configuration;
 using ParserTabletkiUa;
 
@@ -20,7 +21,7 @@ namespace TelBotConsole
         private static string Token { get; set; } = "5239080494:AAHdI_BH2gykGpFk486vAWVp31UGL6GLbiA";
         private static TelegramBotClient client;
         static User me;
-
+        static  bool IsDrugFounded = false;
         static bool IsFindMode = false;
 
 
@@ -43,13 +44,17 @@ namespace TelBotConsole
 
             if (msg != null)
             {
-               
+                
                 Find(msg);
-                await client.SendTextMessageAsync(msg.Chat.Id, "Введіть назву препарату:");
+                //if (IsDrugFounded)
+                //    await client.SendTextMessageAsync(msg.Chat.Id, "Пошук завершено. Введіть наступну назву препарату, який вас цікавить:");
+                //else
+                    await client.SendTextMessageAsync(msg.Chat.Id, "Введіть назву препарату українською мовою:");
+                IsDrugFounded = true;
                 return;
-               
 
-              
+
+
             }
         }
 
@@ -67,7 +72,11 @@ namespace TelBotConsole
                     Parser.IsFound = false;
                     foreach (DrugBlock db in Parser.ListOfDrugsBlocks)
                     {
-                        ReplyDrug(msg, db);
+                        Thread.Sleep(300);
+                        if (!String.IsNullOrEmpty(db.PriceString))
+                        {
+                            ReplyDrug(msg, db);
+                        }
                     }
                     IsFindMode = false;
                     return Parser.ListOfDrugsBlocks;
@@ -81,24 +90,33 @@ namespace TelBotConsole
             }
             IsFindMode = false;
             return null;
+
+
         }
 
-        private static async void ReplyText(Message msg, string text)
+
+        private static async void SendDrugBlockToChat(Message msg, string text, DrugBlock db)
         {
-            await client.SendTextMessageAsync(msg.Chat.Id, text);
+            
+            client.SendPhotoAsync(msg.Chat.Id, db.ImageSource, text, ParseMode.Html);
+            IsDrugFounded = true;
         }
+
+
 
         private static async void ReplyDrug(Message msg, DrugBlock db)
         {
-            ReplyText(msg, "Фото: " + db.ImageSource);
-            ReplyText(msg, "Назва: " + db.Name
-                + "Виробник: " + db.Manufacturer
-                + "Ціна: " + db.PriceString
-                + "" + db.Stores
-                + "Варіанти аптек, замовлення: " + db.LinkStores
 
-                );
-     
+            SendDrugBlockToChat(msg, "Назва: " + db.Name + "\n"
+
+            + "Виробник: " + db.Manufacturer + "\n"
+            + "Ціна: " + db.PriceString + "\n"
+            + "<a href='" + db.LinkStores+ "'>Дивитись у аптеках</a>"
+
+             , db);
+
+
+
         }
 
         private static async void Client_OnMessage(object sender, MessageEventArgs e)
